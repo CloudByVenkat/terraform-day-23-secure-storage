@@ -1,0 +1,15 @@
+directory:
+  - .
+
+output: cli
+compact: true
+quiet: false
+
+framework:
+  - terraform
+
+download-external-modules: true
+# Skip false positives where we ARE implementing the security control
+# but in a separate resource that Checkov doesn't recognize
+skip-check:
+  - CKV_AZURE_33  # Queue logging is configured in azurerm_storage_account_queue_properties resource
