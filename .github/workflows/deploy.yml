@@ -32,48 +32,48 @@ jobs:
       ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
     outputs:
       branch_name: ${{ github.ref_name }}
-
+    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-
+      
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: ${{ env.TF_VERSION }}
-
+      
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-
+      
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v3
         with:
           tflint_version: latest
-
+      
       - name: Initialize TFLint
         run: tflint --init
-
+      
       - name: Install Python Tools
         run: pip install pre-commit checkov
-
+      
       - name: Run Pre-commit Hooks
         run: pre-commit run --all-files
-
+      
       - name: Terraform Init
         run: terraform init
-
+      
       - name: Terraform Validate
         run: terraform validate
-
+      
       - name: Terraform Plan
         run: terraform plan -out=tfplan
-
+      
       - name: Upload Plan Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan
+          name: tfplan-${{ github.ref_name }}
           path: tfplan
 
   # =========================
@@ -83,31 +83,34 @@ jobs:
     name: Deploy to Dev
     needs: validate
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    # ✅ Only run for develop branch pushes (NOT for main)
+    if: |
+      github.ref == 'refs/heads/develop' && 
+      github.event_name == 'push'
     environment: dev
     env:
       ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-
+    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-
+      
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: ${{ env.TF_VERSION }}
-
+      
       - name: Download Plan
         uses: actions/download-artifact@v4
         with:
-          name: tfplan
-
+          name: tfplan-develop
+      
       - name: Terraform Init
         run: terraform init
-
+      
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
 
@@ -118,30 +121,33 @@ jobs:
     name: Deploy to Production
     needs: validate
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # ✅ Only run for main branch pushes (NOT for develop)
+    if: |
+      github.ref == 'refs/heads/main' && 
+      github.event_name == 'push'
     environment: prod
     env:
       ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-
+    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-
+      
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: ${{ env.TF_VERSION }}
-
+      
       - name: Download Plan
         uses: actions/download-artifact@v4
         with:
-          name: tfplan
-
+          name: tfplan-main
+      
       - name: Terraform Init
         run: terraform init
-
+      
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
