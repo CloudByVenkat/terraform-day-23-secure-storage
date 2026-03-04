@@ -48,11 +48,17 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Cache TFLint Plugin
+        uses: actions/cache@v3
+        with:
+          path: ~/.tflint.d
+          key: ${{ runner.os }}-tflint-${{ hashFiles('.tflint.hcl') }}
+
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v3
         with:
           tflint_version: latest
-          GITHUB_TOKEN: ${{ github.token }}
+          github_token: ${{ github.token }}
 
       - name: Initialize TFLint
         run: tflint --init
@@ -71,23 +77,40 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      - name: Terraform Plan
-        run: terraform plan -out=tfplan
+      # Plan for the appropriate workspace based on branch
+      - name: Terraform Plan (Dev Workspace)
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          terraform workspace select dev || terraform workspace new dev
+          terraform plan -out=tfplan-dev
 
-      - name: Upload Plan Artifact
+      - name: Terraform Plan (Prod Workspace)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          terraform workspace select prod || terraform workspace new prod
+          terraform plan -out=tfplan-prod
+
+      - name: Upload Plan Artifact (Dev)
+        if: github.ref == 'refs/heads/develop'
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan-${{ github.ref_name }}
-          path: tfplan
+          name: tfplan-dev
+          path: tfplan-dev
+
+      - name: Upload Plan Artifact (Prod)
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-prod
+          path: tfplan-prod
 
   # =========================
-  # 2️⃣ DEPLOY TO DEV
+  # 2️⃣ DEPLOY TO DEV WORKSPACE
   # =========================
   deploy-dev:
-    name: Deploy to Dev
+    name: Deploy to Dev Workspace
     needs: validate
     runs-on: ubuntu-latest
-    # ✅ Only run for develop branch pushes (NOT for main)
     if: |
       github.ref == 'refs/heads/develop' &&
       github.event_name == 'push'
@@ -110,22 +133,29 @@ jobs:
       - name: Download Plan
         uses: actions/download-artifact@v4
         with:
-          name: tfplan-develop
+          name: tfplan-dev
 
       - name: Terraform Init
         run: terraform init
 
+      - name: Select Dev Workspace
+        run: terraform workspace select dev || terraform workspace new dev
+
+      - name: Show Current Workspace
+        run: |
+          echo "Current workspace:"
+          terraform workspace show
+
       - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve tfplan-dev
 
   # =========================
-  # 3️⃣ DEPLOY TO PROD
+  # 3️⃣ DEPLOY TO PROD WORKSPACE
   # =========================
   deploy-prod:
-    name: Deploy to Production
+    name: Deploy to Prod Workspace
     needs: validate
     runs-on: ubuntu-latest
-    # ✅ Only run for main branch pushes (NOT for develop)
     if: |
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push'
@@ -148,10 +178,18 @@ jobs:
       - name: Download Plan
         uses: actions/download-artifact@v4
         with:
-          name: tfplan-main
+          name: tfplan-prod
 
       - name: Terraform Init
         run: terraform init
 
+      - name: Select Prod Workspace
+        run: terraform workspace select prod || terraform workspace new prod
+
+      - name: Show Current Workspace
+        run: |
+          echo "Current workspace:"
+          terraform workspace show
+
       - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve tfplan-prod
