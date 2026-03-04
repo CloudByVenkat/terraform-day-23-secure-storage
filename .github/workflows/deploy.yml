@@ -19,134 +19,129 @@ env:
   TF_VERSION: "1.6.0"
 
 jobs:
-# =========================
-# 1️⃣ VALIDATE & PLAN
-# =========================
+  # =========================
+  # 1️⃣ VALIDATE & PLAN
+  # =========================
   validate:
     name: Validate & Plan
     runs-on: ubuntu-latest
-
     env:
       ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-
     outputs:
       branch_name: ${{ github.ref_name }}
-
+    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-
+      
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: ${{ env.TF_VERSION }}
-
+      
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-
-      - name: Install Pre-commit
-        run: pip install pre-commit
-
-      - name: Run Pre-commit
+      
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v3
+        with:
+          tflint_version: latest
+      
+      - name: Initialize TFLint
+        run: tflint --init
+      
+      - name: Install Python Tools
+        run: pip install pre-commit checkov
+      
+      - name: Run Pre-commit Hooks
         run: pre-commit run --all-files
-
+      
       - name: Terraform Init
         run: terraform init
-
+      
       - name: Terraform Validate
         run: terraform validate
-
-      - name: Run TFLint
-        uses: terraform-linters/setup-tflint@v3
-
-      - run: tflint --init
-      - run: tflint
-
-      - name: Run Checkov
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          directory: .
-          framework: terraform
-          output_format: cli
-          soft_fail: false
-
+      
       - name: Terraform Plan
         run: terraform plan -out=tfplan
-
+      
       - name: Upload Plan Artifact
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
           path: tfplan
-# =========================
-# 2️⃣ DEPLOY TO DEV
-# =========================
+
+  # =========================
+  # 2️⃣ DEPLOY TO DEV
+  # =========================
   deploy-dev:
     name: Deploy to Dev
     needs: validate
     runs-on: ubuntu-latest
-
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-
     environment: dev
-
     env:
       ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-
+    
     steps:
-      - uses: actions/checkout@v3
-
-      - uses: hashicorp/setup-terraform@v2
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: ${{ env.TF_VERSION }}
-
-      - uses: actions/download-artifact@v4
+      
+      - name: Download Plan
+        uses: actions/download-artifact@v4
         with:
           name: tfplan
+      
+      - name: Terraform Init
+        run: terraform init
+      
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
 
-      - run: terraform init
-
-      - run: terraform apply -auto-approve tfplan
-
-
-# =========================
-# 3️⃣ DEPLOY TO PROD
-# =========================
+  # =========================
+  # 3️⃣ DEPLOY TO PROD
+  # =========================
   deploy-prod:
     name: Deploy to Production
     needs: validate
     runs-on: ubuntu-latest
-
-    # Only after PR merge to main
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
     environment: prod
-
     env:
       ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-
+    
     steps:
-      - uses: actions/checkout@v3
-
-      - uses: hashicorp/setup-terraform@v2
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: ${{ env.TF_VERSION }}
-
-      - uses: actions/download-artifact@v4
+      
+      - name: Download Plan
+        uses: actions/download-artifact@v4
         with:
           name: tfplan
-
-      - run: terraform init
-
-      - run: terraform apply -auto-approve tfplan
+      
+      - name: Terraform Init
+        run: terraform init
+      
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
