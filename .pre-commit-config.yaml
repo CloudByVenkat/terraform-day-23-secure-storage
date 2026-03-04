@@ -9,17 +9,17 @@ repos:
       # Format Terraform files
       - id: terraform_fmt
         name: Terraform Format
-      
+
       # Validate Terraform syntax
       - id: terraform_validate
         name: Terraform Validate
-      
+
       # Run tflint
       - id: terraform_tflint
         name: TFLint
         args:
           - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
-      
+
       # Security scanning
       - id: terraform_checkov
         name: Checkov Security Scan

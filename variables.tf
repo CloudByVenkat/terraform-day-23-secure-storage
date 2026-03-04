@@ -9,3 +9,7 @@ variable "location" {
   type        = string
   default     = "Canada Central"
 }
+variable "admin_user_object_id" {
+  description = "Azure AD Object ID of admin user"
+  type        = string
+}
