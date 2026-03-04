@@ -82,13 +82,13 @@ jobs:
         if: github.ref == 'refs/heads/develop'
         run: |
           terraform workspace select dev || terraform workspace new dev
-          terraform plan -out=tfplan-dev
+          terraform plan -var-file=dev.tfvars -out=tfplan-dev
 
       - name: Terraform Plan (Prod Workspace)
         if: github.ref == 'refs/heads/main'
         run: |
           terraform workspace select prod || terraform workspace new prod
-          terraform plan -out=tfplan-prod
+          terraform plan -var-file=prod.tfvars -out=tfplan-prod
 
       - name: Upload Plan Artifact (Dev)
         if: github.ref == 'refs/heads/develop'
