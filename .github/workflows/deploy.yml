@@ -73,7 +73,7 @@ jobs:
       - name: Upload Plan Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan
+          name: tfplan-${{ github.ref_name }}
           path: tfplan
 
   # =========================
@@ -83,7 +83,10 @@ jobs:
     name: Deploy to Dev
     needs: validate
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    # ✅ Only run for develop branch pushes (NOT for main)
+    if: |
+      github.ref == 'refs/heads/develop' && 
+      github.event_name == 'push'
     environment: dev
     env:
       ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
@@ -103,7 +106,7 @@ jobs:
       - name: Download Plan
         uses: actions/download-artifact@v4
         with:
-          name: tfplan
+          name: tfplan-develop
       
       - name: Terraform Init
         run: terraform init
@@ -118,7 +121,10 @@ jobs:
     name: Deploy to Production
     needs: validate
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # ✅ Only run for main branch pushes (NOT for develop)
+    if: |
+      github.ref == 'refs/heads/main' && 
+      github.event_name == 'push'
     environment: prod
     env:
       ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
@@ -138,7 +144,7 @@ jobs:
       - name: Download Plan
         uses: actions/download-artifact@v4
         with:
-          name: tfplan
+          name: tfplan-main
       
       - name: Terraform Init
         run: terraform init
