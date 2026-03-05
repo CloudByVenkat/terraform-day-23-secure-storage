@@ -4,23 +4,19 @@
 repos:
   # Terraform formatting and validation
   - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.83.6
+    rev: v1.105.0
     hooks:
-      # Format Terraform files
       - id: terraform_fmt
         name: Terraform Format
 
-      # Validate Terraform syntax
       - id: terraform_validate
         name: Terraform Validate
 
-      # Run tflint
       - id: terraform_tflint
         name: TFLint
         args:
           - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
 
-      # Security scanning
       - id: terraform_checkov
         name: Checkov Security Scan
         args:
@@ -28,12 +24,14 @@ repos:
 
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
-        args: ['--maxkb=1000']
+        args: ["--maxkb=1000"]
+
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: check-merge-conflict
+
       - id: check-yaml
-        args: ['--allow-multiple-documents']
+        args: ["--allow-multiple-documents"]
